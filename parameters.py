@@ -10,8 +10,10 @@ Independent parameters
 
 par = {
     # Setup parameters
-    'save_dir'              : './savedir/',
+    'save_dir'              : './',
+    #'conv_weight_fn'        : 'C:\\Users\\Krithika\\Documents\\RNNs\\learning_to_learn\\conv_weights.pkl',
     #'conv_weight_fn'        : '/home/bpeysakhovich/Documents/rnn_modeling/learning_to_learn/conv_weights.pkl',
+    #'conv_weight_fn'        : '/home/masse/learning_to_learn/conv_weights.pkl',
     'conv_weight_fn'        : 'C:\\Users\\Freedmanlab\\barbara\\learning_to_learn\\conv_weights.pkl',
     'analyze_model'         : True,
 
@@ -23,8 +25,8 @@ par = {
     'synapse_config'        : 'std_stf', # 'std_stf' or None
 
     # Synthetic data gpu_options
-    'synthetic_data'        : True,
-    'synethic_size'         : 20,
+    'synthetic_data'        : False,
+    'synthetic_size'         : 20,
 
     # Network shape
     'n_input'               : [2048, 1000],
@@ -35,7 +37,7 @@ par = {
 
     # Timings and rates
     'dt'                    : 20,
-    'learning_rate'         : 5e-4,
+    'learning_rate'         : 2e-3,
     'membrane_time_constant': 100,
     'discount_rate'         : 0.,
 
@@ -47,7 +49,7 @@ par = {
 
     # Cost parameters
     'spike_cost'            : 1e-6,
-    'entropy_cost'          : 0.05,
+    'entropy_cost'          : 0.04,
 
     # Synaptic plasticity specs
     'tau_fast'              : 200,
@@ -56,14 +58,14 @@ par = {
     'U_std'                 : 0.45,
 
     # Training specs
-    'batch_size'            : 1,
-    'num_iterations'        : 300000,
+    'batch_size'            : 256,
+    'num_iterations'        : 40000,
     'iters_between_outputs' : 100,
-    'trials_per_sequence'   : 1,
-    'trials_per_grad_update': 50,
+    'trials_per_sequence'   : 2,
+    'trials_per_grad_update': 1,
 
     # Task specs
-    'trial_type'            : 'task1', # allowable types: DMS, DMRS45, DMRS90, DMRS180, DMC, DMS+DMRS, ABBA, ABCA, dualDMS
+    'trial_type'            : 'task1',
 
     # Reward parameters
     'fix_break_penalty'     : -1.,
@@ -75,6 +77,9 @@ par = {
     'kernel_size'           : [3, 3],
     'pool_size'             : [2,2],
     'stride'               : 1,
+
+    # Save paths
+    'save_fn'               : 'model_results.pkl',
 
 }
 
@@ -104,10 +109,10 @@ def update_trial_params():
 
     if par['trial_type'] == 'task1':
         par['ITI'] = 200
-        par['fix'] = 400
-        par['stim'] = 400
+        par['fix'] = 200
+        par['stim'] = 200
         par['delay'] = 0
-        par['resp'] = 500
+        par['resp'] = 400
         par['trial_length'] = par['ITI'] + par['fix'] + par['stim'] + par['delay'] + par['resp']
         par['n_time_steps'] = par['trial_length']//par['dt']
         par['sequence_time_steps'] = par['n_time_steps']*par['trials_per_sequence']
@@ -124,7 +129,7 @@ def update_dependencies():
 
 
     if par['synthetic_data']:
-        par['n_input'] = [par['synethic_size']]
+        par['n_input'] = [par['synthetic_size']]
         par['include_ff_layer'] = False
         print('Using synthetic data')
 
@@ -167,7 +172,7 @@ def update_dependencies():
     par['c_init'] = 0.1*np.ones((par['batch_size'], par['n_hidden']), dtype=np.float32) # cell state (only used for LSTM units)
 
     # Initialize input weights
-    c = 0.02
+    c = 0.05
     if par['include_ff_layer']:
         par['W_in0_init'] =  c*np.float32(np.random.gamma(shape=0.25, scale=1.0, size = [par['n_input'][0], par['n_input'][1]]))
         par['b_in0_init'] = np.zeros((1, par['n_input'][1]), dtype = np.float32)
@@ -175,7 +180,7 @@ def update_dependencies():
 
     else:
         #par['W_in1_init'] =  c*np.float32(np.random.gamma(shape=0.25, scale=1.0, size = [par['n_hidden'], par['n_input'][0]]))
-        par['W_in1_init'] =  c*np.float32(np.random.uniform(-0.1, 0.1, size = [par['n_input'][0], par['n_hidden']]))
+        par['W_in1_init'] =  c*np.float32(np.random.uniform(-c, c, size = [par['n_input'][0], par['n_hidden']]))
 
         # Testing whether sparser connectivity helps.... []
         connectivity_prob = 1.
@@ -200,7 +205,7 @@ def update_dependencies():
 
 
     if par['LSTM']:
-        c = 0.02
+        c = 0.05
         par['Wf_init'] =  c*np.float32(np.random.uniform(-c, c, size = [par['n_input'][0], par['n_hidden']]))
         par['Wi_init'] =  c*np.float32(np.random.uniform(-c, c, size = [par['n_input'][0], par['n_hidden']]))
         par['Wo_init'] =  c*np.float32(np.random.uniform(-c, c, size = [par['n_input'][0], par['n_hidden']]))

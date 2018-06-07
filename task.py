@@ -10,27 +10,28 @@ class Stimulus:
 
         # we will train the convolutional layers using the training images
         # we will use the train images fro the learning to learn experiments
-        self.imagenet_dir = '/home/masse/Context-Dependent-Gating/ImageNet/'
-        #self.cifar_dir = '/home/bpeysakhovich/Documents/rnn_modeling/learning_to_learn/cifar/cifar-100-python/'
+        #self.imagenet_dir = '/home/masse/Context-Dependent-Gating/ImageNet/'
+        #self.cifar_dir = 'C:\\Users\\Krithika\\Documents\\RNNs\\learning_to_learn\\cifar-100-python\\'
         self.cifar_dir = 'C:\\Users\\Freedmanlab\\barbara\\learning_to_learn\\cifar-100-python\\'
+        #self.cifar_dir = '/home/masse/Context-Dependent-Gating/cifar/cifar-100-python/'
         self.load_cifar_data()
 
         # for the simple image/saccade task (task 1), select 50 pairs of images
         # TODO: find better name than task1
-        self.image_list_task1 = np.random.choice(len(self.test_labels), size = (50,2), replace = False)
+        self.image_list_task1 = np.random.choice(len(self.test_labels), size = (100,2), replace = False)
 
         # Task 0 will be structured in the same manner as Task 1, but will use small synthetic random data,
-        # where each "image" is a 1 X par['synethic_size'] random vector
-        self.image_task0 = np.random.rand(50, 2, par['synethic_size'])
+        # where each "image" is a 1 X par['synthetic_size'] random vector
+        self.image_task0 = np.random.rand(100, 2, par['synthetic_size'])
         # make things easy
-        for i in range(50):
-            self.image_task0[i,0,:par['synethic_size']//2] *= 2
-            self.image_task0[i,1,par['synethic_size']//2:] *= 2
+        for i in range(100):
+            self.image_task0[i,0,:par['synthetic_size']//2] *= 2
+            self.image_task0[i,1,par['synthetic_size']//2:] *= 2
 
     def generate_batch(self, task, image_pair):
         if task == 0:
             return self.generate_batch_task0(image_pair)
-        elif task == 0:
+        elif task == 1:
             return self.generate_batch_task1(image_pair)
         else:
             print('Unrecognized task number')
@@ -43,7 +44,7 @@ class Stimulus:
         # reward of 1 for choosing correct action (left/right), reward of -1 otherwise
         # trial stops when agent receives reward not equal to 0
 
-        batch_data   = np.zeros((par['n_time_steps']*par['trials_per_sequence'], par['batch_size'], par['synethic_size']), dtype = np.float32)
+        batch_data   = np.zeros((par['n_time_steps']*par['trials_per_sequence'], par['batch_size'], par['synthetic_size']), dtype = np.float32)
         rewards      = np.zeros((par['n_time_steps']*par['trials_per_sequence'], par['batch_size'], par['n_pol']), dtype = np.float32)
         trial_mask   = np.ones((par['n_time_steps']*par['trials_per_sequence'], par['batch_size'], 1), dtype = np.float32)
         new_trial   = np.zeros((par['n_time_steps']*par['trials_per_sequence']), dtype = np.float32)
@@ -64,7 +65,7 @@ class Stimulus:
             sac_dir = np.random.choice(2)
 
             batch_data[range(start_time+ITI+fix, start_time+ITI+fix+stim), i, ...] = \
-                np.float32(np.reshape(self.image_task0[image_pair, sac_dir, :],(1,1,par['synethic_size']), order='F'))
+                np.float32(np.reshape(self.image_task0[image_pair, sac_dir, :],(1,1,par['synthetic_size']), order='F'))
 
             # fixation
             rewards[range(start_time+ITI, start_time+ITI+fix+stim+delay), i, 1] = par['fix_break_penalty'] # fixation break

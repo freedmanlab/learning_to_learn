@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from parameters import par
 from convolutional_layers import apply_convolutional_layers
 import os, sys
+import pickle
 
 # Ignore "use compiled version of TensorFlow" errors
 os.environ['TF_CPP_MIN_LOG_LEVEL']='2'
@@ -74,12 +75,11 @@ class Model:
 
             if par['synthetic_data']:
                 #self.conv_output = tf.transpose(rnn_input)
-                self.conv_output = rnn_input
+                conv_output = rnn_input
             else:
-                x, _ = apply_convolutional_layers(rnn_input, par['conv_weight_fn']) # second output is the projection from the 1st convolutional layer
-                self.conv_output = tf.transpose(x)
+                conv_output, _ = apply_convolutional_layers(rnn_input, par['conv_weight_fn']) # second output is the projection from the 1st convolutional layer
 
-            h, syn_x, syn_u, c, action, pol_out, val_out, mask, reward  = self.rnn_cell(self.conv_output, h, syn_x, syn_u, c, self.action[-1], self.reward[-1], \
+            h, syn_x, syn_u, c, action, pol_out, val_out, mask, reward  = self.rnn_cell(conv_output, h, syn_x, syn_u, c, self.action[-1], self.reward[-1], \
                 self.mask[-1], target, time_mask, new_trial)
 
             self.h.append(h)
@@ -253,7 +253,7 @@ class Model:
             self.Wo = tf.get_variable('Wo', initializer = par['Wo_init'])
             self.Wc = tf.get_variable('Wc', initializer = par['Wc_init'])
 
-            self.Uf = tf.get_variable('Uf', initializer = par['Uf_init'])
+            self.Uf = tf.get_variable('Uf', initializer = par['Ui_init'])
             self.Ui = tf.get_variable('Ui', initializer = par['Ui_init'])
             self.Uo = tf.get_variable('Uo', initializer = par['Uo_init'])
             self.Uc = tf.get_variable('Uc', initializer = par['Uc_init'])
@@ -328,12 +328,15 @@ def main(gpu_id = None):
         sx_init = np.array(par['syn_x_init']) # short-term plasticity value
         su_init = np.array(par['syn_u_init']) # short-term plasticity value
 
+        image_pair = 0
+        new_image_pair_i = []
+
         for i in range(par['num_iterations']):
 
             """
             Generate stimulus and response contigencies
             """
-            input_data, reward_data, trial_mask, new_trial_signal = stim.generate_batch(task = 0, image_pair = 0)
+            input_data, reward_data, trial_mask, new_trial_signal = stim.generate_batch(task = 1, image_pair = image_pair)
 
             """
             Run the model
@@ -342,10 +345,23 @@ def main(gpu_id = None):
                 model.h, model.syn_x, model.syn_u, model.action, model.mask, model.reward], {x: input_data, target: reward_data, mask: trial_mask, \
                 new_trial: new_trial_signal, h_init:hidden_init, syn_x_init: sx_init, syn_u_init: su_init, c_init:cell_state_init})
 
+            accuracy_batch_mean = np.sum(np.array(reward_list)==1)/(par['batch_size']*par['trials_per_sequence'])
+
+            accuracy = np.zeros([par['trials_per_sequence'], par['batch_size'], 1])
+
+            for i_trial in range(0, par['trials_per_sequence']):
+                accuracy[i_trial, :] = np.sum(np.array(reward_list[par['n_time_steps']*i_trial:par['n_time_steps']*(i_trial+1)]), 0)
+
+            # subsitute in new images after 1000 iterations
+            #if accuracy_batch_mean > 0.50:
+            if i%1000 == 0:
+                image_pair = image_pair+1
+                new_image_pair_i.append(i)
+
             """
             Unpack all lists, calculate predicted value and advantage functions
             """
-            val_out, reward, adv, act, predicted_val, stacked_mask = stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, trial_mask)
+            val_out, reward, adv, act, predicted_val, stacked_mask, stacked_acc = stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, trial_mask, accuracy)
 
             if i > 18600 and i < 8620:
                 print(val_out.shape, predicted_val.shape, act.shape, adv.shape)
@@ -381,13 +397,28 @@ def main(gpu_id = None):
             """
             Append model results an dprint results
             """
-            append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, i)
+            append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, i, new_image_pair_i, accuracy)
             if i%par['iters_between_outputs']==0 and i > 0:
-                print_results(i, model_performance)
+                print_results(i, model_performance, image_pair)
 
 
+            """
+            Save model and results
+            """
+            #save_path = saver.save(sess, par['save_dir'] + par['ckpt_save_fn'])
+            #weights = eval_weights()
+            results = {}
+            results = {
+                'model_performance': model_performance,
+                'parameters': par,
+                #'weights': weights,
+                }
 
-def stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, trial_mask):
+            save_fn = par['save_dir'] + par['save_fn']
+            pickle.dump(results, open(save_fn, 'wb') )
+
+
+def stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, trial_mask, accuracy):
 
 
     pol_out = np.stack(pol_out_list)
@@ -400,12 +431,12 @@ def stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, 
     adv = pred_val - val_out_stacked[:-1,:,:]
     #adv = reward - val_out
     act = np.stack(action_list)
+    acc = np.stack(accuracy)
 
-    return val_out, reward, adv, act, pred_val, stacked_mask
+    return val_out, reward, adv, act, pred_val, stacked_mask, acc#, newimgpair_iter
 
 
-
-def append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, trial_num):
+def append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, trial_num, new_image_pair_i, accuracy):
 
     reward = np.mean(np.sum(reward,axis = 0))/par['trials_per_sequence']
     model_performance['reward'].append(reward)
@@ -414,14 +445,116 @@ def append_model_performance(model_performance, reward, entropy_loss, pol_loss, 
     model_performance['val_loss'].append(val_loss)
     model_performance['trial'].append(trial_num)
     model_performance['mean_h'].append(np.mean(np.stack(h_list)))
+    model_performance['newimgpair_iter'] = new_image_pair_i
+    model_performance['accuracy'] = accuracy
 
     return model_performance
+
+def eval_weights():
+
+    with tf.variable_scope('recurrent_pol'):
+        if par['include_ff_layer']:
+            W_in0 = tf.get_variable('W_in0')
+            b_in0 = tf.get_variable('b_in0')
+
+        W_pol_out = tf.get_variable('W_pol_out')
+        b_pol_out = tf.get_variable('b_pol_out')
+
+        W_val_out = tf.get_variable('W_val_out')
+        b_val_out = tf.get_variable('b_val_out')
+
+    if par['LSTM']:
+        # following conventions on https://en.wikipedia.org/wiki/Long_short-term_memory
+        Wf = tf.get_variable('Wf')
+        Wi = tf.get_variable('Wi')
+        Wo = tf.get_variable('Wo')
+        Wc = tf.get_variable('Wc')
+
+        Uf = tf.get_variable('Uf')
+        Ui = tf.get_variable('Ui')
+        Uo = tf.get_variable('Uo')
+        Uc = tf.get_variable('Uc')
+
+        bf = tf.get_variable('bf')
+        bi = tf.get_variable('bi')
+        bo = tf.get_variable('bo')
+        bc = tf.get_variable('bc')
+
+        Wf_reward_pos = tf.get_variable('Wf_reward_pos')
+        Wi_reward_pos = tf.get_variable('Wi_reward_pos')
+        Wo_reward_pos = tf.get_variable('Wo_reward_pos')
+        Wc_reward_pos = tf.get_variable('Wc_reward_pos')
+
+        Wf_reward_neg = tf.get_variable('Wf_reward_neg')
+        Wi_reward_neg = tf.get_variable('Wi_reward_neg')
+        Wo_reward_neg = tf.get_variable('Wo_reward_neg')
+        Wc_reward_neg = tf.get_variable('Wc_reward_neg')
+
+        Wf_action = tf.get_variable('Wf_action')
+        Wi_action = tf.get_variable('Wi_action')
+        Wo_action = tf.get_variable('Wo_action')
+        Wc_action = tf.get_variable('Wc_action')
+
+        weights = {
+            'Wf' : Wf.eval(),
+            'Wi' : Wi.eval(),
+            'Wo' : Wo.eval(),
+            'Wc' : Wc.eval(),
+            'Uf' : Uf.eval(),
+            'Ui' : Ui.eval(),
+            'Uo' : Uo.eval(),
+            'Uc' : Uc.eval(),
+            'bf' : bf.eval(),
+            'bi' : bi.eval(),
+            'bo' : bo.eval(),
+            'bc' : bc.eval(),
+            'Wf_reward_pos' : Wf_reward_pos.eval(),
+            'Wi_reward_pos' : Wi_reward_pos.eval(),
+            'Wo_reward_pos' : Wo_reward_pos.eval(),
+            'Wc_reward_pos' : Wc_reward_pos.eval(),
+            'Wf_reward_neg' : Wf_reward_neg.eval(),
+            'Wi_reward_neg' : Wi_reward_neg.eval(),
+            'Wo_reward_neg' : Wo_reward_neg.eval(),
+            'Wc_reward_neg' : Wc_reward_neg.eval(),
+            'Wf_action' : Wf_action.eval(),
+            'Wi_action' : Wi_action.eval(),
+            'Wo_action' : Wo_action.eval(),
+            'Wc_action' : Wc_action.eval(),
+            'W_pol_out' : W_pol_out.eval(),
+            'b_pol_out' : b_pol_out.eval(),
+            'W_val_out' : W_val_out.eval(),
+            'b_val_out' : b_val_out.eval(),
+            }
+    else:
+        # Weights for vanilla RNN
+        W_in1 = tf.get_variable('W_in1')
+        b_rnn = tf.get_variable('b_rnn')
+        W_rnn = tf.get_variable('W_rnn')
+        W_reward_pos = tf.get_variable('W_reward_pos')
+        W_reward_neg = tf.get_variable('W_reward_neg')
+        W_action = tf.get_variable('W_action')
+
+        weights = {
+            'W_in1' : W_in1.eval(),
+            'b_rnn' : b_rnn.eval(),
+            'W_rnn' : W_rnn.eval(),
+            'W_reward_pos' : W_reward_pos.eval(),
+            'W_reward_neg' : W_reward_neg.eval(),
+            'W_action' : W_action.eval(),
+            'W_pol_out' : W_pol_out.eval(),
+            'b_pol_out' : b_pol_out.eval(),
+            'W_val_out' : W_val_out.eval(),
+            'b_val_out' : b_val_out.eval(),
+            }
+
+    return weights
+
 
 def generate_placeholders():
 
     mask = tf.placeholder(tf.float32, shape=[par['sequence_time_steps'], par['batch_size'], 1])
     if par['synthetic_data']:
-        x = tf.placeholder(tf.float32, shape=[par['sequence_time_steps'], par['batch_size'], par['synethic_size']])  # input data
+        x = tf.placeholder(tf.float32, shape=[par['sequence_time_steps'], par['batch_size'], par['synthetic_size']])  # input data
     else:
         x = tf.placeholder(tf.float32, shape=[par['sequence_time_steps'], par['batch_size'], 32, 32, 3])  # input data
     target = tf.placeholder(tf.float32, shape=[par['sequence_time_steps'], par['batch_size'], par['n_pol']])  # input data
@@ -438,7 +571,7 @@ def generate_placeholders():
     return x, target, mask, pred_val, actual_action, advantage, new_trial, h_init, c_init, syn_x_init, syn_u_init, mask
 
 
-def print_results(iter_num, model_performance):
+def print_results(iter_num, model_performance, image_pair):
 
     reward = np.mean(np.stack(model_performance['reward'])[-par['iters_between_outputs']:])
     pol_loss = np.mean(np.stack(model_performance['pol_loss'])[-par['iters_between_outputs']:])
@@ -446,9 +579,11 @@ def print_results(iter_num, model_performance):
     entropy_loss = np.mean(np.stack(model_performance['entropy_loss'])[-par['iters_between_outputs']:])
     mean_h = np.mean(np.stack(model_performance['mean_h'])[-par['iters_between_outputs']:])
 
+
     print('Iter. {:4d}'.format(iter_num) + ' | Reward {:0.4f}'.format(reward) +
       ' | Pol loss {:0.4f}'.format(pol_loss) + ' | Val loss {:0.4f}'.format(val_loss) +
-      ' | Entropy loss {:0.4f}'.format(entropy_loss), ' | Mean h {:0.4f}'.format(mean_h))
+      ' | Entropy loss {:0.4f}'.format(entropy_loss), ' | Mean h {:0.4f}'.format(mean_h) +
+      ' | Image pair {:2d}'.format(image_pair))
 
 def print_key_params():
 
