@@ -100,7 +100,6 @@ class Stimulus:
 
         for i, j in product(range(par['batch_size']), range(par['trials_per_sequence'])):
 
-
             start_time = j*par['n_time_steps']
             new_trial[start_time] = 1
             trial_mask[range(start_time,start_time+ITI), :, 0] = 0
@@ -108,8 +107,12 @@ class Stimulus:
             sac_dir = np.random.choice(2)
             image_ind = self.image_list_task1[image_pair, sac_dir]
 
+            """
             batch_data[range(start_time+ITI+fix, start_time+ITI+fix+stim), i, ...] = \
-                np.float32(np.reshape(self.test_images[image_ind, :],(1,1,32,32,3), order='F'))/255
+                np.float32(np.reshape(self.test_images[image_ind, ],(1,1,32,32,3), order='F'))/255
+            """
+
+            batch_data[range(start_time+ITI+fix, start_time+ITI+fix+stim), i, ...] = self.test_images[image_ind, ]
 
             # fixation
             rewards[range(start_time+ITI, start_time+ITI+fix+stim+delay), i, 1] = par['fix_break_penalty'] # fixation break
@@ -118,9 +121,9 @@ class Stimulus:
             rewards[range(start_time+ITI+fix+stim+delay, start_time+par['n_time_steps']), i, 1+sac_dir] = par['correct_choice_reward'] # reward correct response
             rewards[range(start_time+ITI+fix+stim+delay, start_time+par['n_time_steps']), i, 1+(1+sac_dir)%2] = par['wrong_choice_penalty'] # penalize incorrect response
 
-        batch_data += np.random.normal(0, par['noise_in'], size = batch_data.shape)
+        #batch_data += np.random.normal(0, par['noise_in'], size = batch_data.shape)
 
-        return np.maximum(0, batch_data), rewards, trial_mask, new_trial
+        return batch_data, rewards, trial_mask, new_trial
 
 
     def load_imagenet_data(self):
@@ -156,6 +159,9 @@ class Stimulus:
 
         self.test_images  = np.array(x[b'data'])
         self.test_labels  = np.array(np.reshape(np.array(x[b'fine_labels']),(-1,1)))
+
+
+        self.test_images = np.reshape(self.test_images,(10000,1,1,32,32,3), order='F')/255
 
     def generate_image_plus_spatial_batch(self, test = False):
 

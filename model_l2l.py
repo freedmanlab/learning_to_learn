@@ -4,7 +4,7 @@ import task
 import matplotlib.pyplot as plt
 from parameters import par
 from convolutional_layers import apply_convolutional_layers
-import os, sys
+import os, sys, time
 import pickle
 
 # Ignore "use compiled version of TensorFlow" errors
@@ -330,8 +330,16 @@ def main(gpu_id = None):
 
         image_pair = 0
         new_image_pair_i = []
+        start_time = time.time()
+
+        accuracy_after_switch = []
 
         for i in range(par['num_iterations']):
+
+            if i%1000 == 0:
+                image_pair += 1
+                new_image_pair_i.append(i)
+                image_switch = True
 
             """
             Generate stimulus and response contigencies
@@ -345,32 +353,18 @@ def main(gpu_id = None):
                 model.h, model.syn_x, model.syn_u, model.action, model.mask, model.reward], {x: input_data, target: reward_data, mask: trial_mask, \
                 new_trial: new_trial_signal, h_init:hidden_init, syn_x_init: sx_init, syn_u_init: su_init, c_init:cell_state_init})
 
-            accuracy_batch_mean = np.sum(np.array(reward_list)==1)/(par['batch_size']*par['trials_per_sequence'])
-
-            accuracy = np.zeros([par['trials_per_sequence'], par['batch_size'], 1])
-
-            for i_trial in range(0, par['trials_per_sequence']):
-                accuracy[i_trial, :] = np.sum(np.array(reward_list[par['n_time_steps']*i_trial:par['n_time_steps']*(i_trial+1)]), 0)
-
-            # subsitute in new images after 1000 iterations
-            #if accuracy_batch_mean > 0.50:
-            if i%1000 == 0:
-                image_pair = image_pair+1
-                new_image_pair_i.append(i)
 
             """
             Unpack all lists, calculate predicted value and advantage functions
             """
-            val_out, reward, adv, act, predicted_val, stacked_mask, stacked_acc = stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, trial_mask, accuracy)
+            val_out, reward, adv, act, predicted_val, stacked_mask = stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, trial_mask)
 
-            if i > 18600 and i < 8620:
-                print(val_out.shape, predicted_val.shape, act.shape, adv.shape)
-                plt.plot(val_out[:,0,0],'b')
-                plt.plot(predicted_val[:,0,0],'r')
-                plt.plot(reward[:,0,0],'g')
-                plt.plot(stacked_mask[:,0],'k')
-                plt.plot(adv[:,0,0],'c')
-                plt.show()
+            trial_accuracy = [np.mean(np.sum(reward[par['n_time_steps']*i:par['n_time_steps']*(i+1), :] > 0, axis = 0)) for i in range(par['trials_per_sequence'])]
+            if image_switch:
+                accuracy_after_switch.append(np.stack(trial_accuracy))
+                print('Accuracy after switch ', trial_accuracy[0], trial_accuracy[1])
+                image_switch = False
+
 
             """
             Calculate and accumulate gradients
@@ -379,6 +373,7 @@ def main(gpu_id = None):
                 {x: input_data, target: reward_data, mask: trial_mask, pred_val: predicted_val, actual_action: act, advantage:adv, \
                 new_trial: new_trial_signal, h_init: hidden_init,  syn_x_init: sx_init, syn_u_init: su_init, c_init: cell_state_init})
 
+
             """
             Apply the accumulated gradients and reset
             """
@@ -386,18 +381,22 @@ def main(gpu_id = None):
                 sess.run([model.train_opt])
                 sess.run([model.reset_gradients])
 
-            hidden_init = np.array(h_list[-1])
+
+            # only need to reuse activity from last trial when batch size is 1
+            #hidden_init = np.array(h_list[-1])
 
             # TODO: need c_init
             if not par['LSTM']:
                 # don't need to update STP values if using LSTM network
-                sx_init = np.array(syn_x_list[-1])
-                su_init = np.array(syn_u_list[-1])
+                # only need to reuse activity from last trial when batch size is 1
+                pass
+                #sx_init = np.array(syn_x_list[-1])
+                #su_init = np.array(syn_u_list[-1])
 
             """
             Append model results an dprint results
             """
-            append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, i, new_image_pair_i, accuracy)
+            append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, i, new_image_pair_i, mean_reward, start_time)
             if i%par['iters_between_outputs']==0 and i > 0:
                 print_results(i, model_performance, image_pair)
 
@@ -418,7 +417,7 @@ def main(gpu_id = None):
             pickle.dump(results, open(save_fn, 'wb') )
 
 
-def stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, trial_mask, accuracy):
+def stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, trial_mask):
 
 
     pol_out = np.stack(pol_out_list)
@@ -431,12 +430,12 @@ def stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, 
     adv = pred_val - val_out_stacked[:-1,:,:]
     #adv = reward - val_out
     act = np.stack(action_list)
-    acc = np.stack(accuracy)
+    #acc = np.stack(accuracy)
 
-    return val_out, reward, adv, act, pred_val, stacked_mask, acc#, newimgpair_iter
+    return val_out, reward, adv, act, pred_val, stacked_mask, #acc, newimgpair_iter
 
 
-def append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, trial_num, new_image_pair_i, accuracy):
+def append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, trial_num, new_image_pair_i, accuracy, start_time):
 
     reward = np.mean(np.sum(reward,axis = 0))/par['trials_per_sequence']
     model_performance['reward'].append(reward)
@@ -446,7 +445,7 @@ def append_model_performance(model_performance, reward, entropy_loss, pol_loss, 
     model_performance['trial'].append(trial_num)
     model_performance['mean_h'].append(np.mean(np.stack(h_list)))
     model_performance['newimgpair_iter'] = new_image_pair_i
-    model_performance['accuracy'] = accuracy
+    model_performance['time'] = time.time() -start_time
 
     return model_performance
 
@@ -583,7 +582,7 @@ def print_results(iter_num, model_performance, image_pair):
     print('Iter. {:4d}'.format(iter_num) + ' | Reward {:0.4f}'.format(reward) +
       ' | Pol loss {:0.4f}'.format(pol_loss) + ' | Val loss {:0.4f}'.format(val_loss) +
       ' | Entropy loss {:0.4f}'.format(entropy_loss), ' | Mean h {:0.4f}'.format(mean_h) +
-      ' | Image pair {:2d}'.format(image_pair))
+      ' | Image pair {:2d}'.format(image_pair) + ' | Time {:0.4f}'.format(model_performance['time']))
 
 def print_key_params():
 
