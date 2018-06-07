@@ -396,7 +396,7 @@ def main(gpu_id = None):
             """
             Append model results an dprint results
             """
-            append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, i, new_image_pair_i, mean_reward, start_time)
+            append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, i, new_image_pair_i, start_time)
             if i%par['iters_between_outputs']==0 and i > 0:
                 print_results(i, model_performance, image_pair)
 
@@ -435,7 +435,7 @@ def stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, 
     return val_out, reward, adv, act, pred_val, stacked_mask, #acc, newimgpair_iter
 
 
-def append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, trial_num, new_image_pair_i, accuracy, start_time):
+def append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, trial_num, new_image_pair_i, start_time):
 
     reward = np.mean(np.sum(reward,axis = 0))/par['trials_per_sequence']
     model_performance['reward'].append(reward)
