@@ -321,30 +321,32 @@ def main(gpu_id = None):
         sess.run(tf.global_variables_initializer())
 
         # keep track of the model performance across training
-        model_performance = {'reward': [], 'entropy_loss': [], 'val_loss': [], 'pol_loss': [], 'spike_loss': [], 'trial': [], 'mean_h': []}
+        model_performance = {'reward': [], 'entropy_loss': [], 'val_loss': [], 'pol_loss': [], 'spike_loss': [], 'trial': [], 'mean_h': [], 'trial_accuracy': []}
 
         hidden_init = np.array(par['h_init'])
         cell_state_init = np.array(par['c_init'])
         sx_init = np.array(par['syn_x_init']) # short-term plasticity value
         su_init = np.array(par['syn_u_init']) # short-term plasticity value
 
-        image_pair = 0
-        new_image_pair_i = []
+        #image_pair = 0
+        #new_image_pair_i = []
         start_time = time.time()
 
-        accuracy_after_switch = []
+        #accuracy_after_switch = []
 
         for i in range(par['num_iterations']):
 
+            """
             if i%1000 == 0:
                 image_pair += 1
                 new_image_pair_i.append(i)
                 image_switch = True
+            """
 
             """
             Generate stimulus and response contigencies
             """
-            input_data, reward_data, trial_mask, new_trial_signal = stim.generate_batch(task = 1, image_pair = image_pair)
+            input_data, reward_data, trial_mask, new_trial_signal = stim.generate_batch(task = 1)
 
             """
             Run the model
@@ -360,10 +362,12 @@ def main(gpu_id = None):
             val_out, reward, adv, act, predicted_val, stacked_mask = stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, trial_mask)
 
             trial_accuracy = [np.mean(np.sum(reward[par['n_time_steps']*i:par['n_time_steps']*(i+1), :] > 0, axis = 0)) for i in range(par['trials_per_sequence'])]
+            """
             if image_switch:
                 accuracy_after_switch.append(np.stack(trial_accuracy))
                 print('Accuracy after switch ', trial_accuracy[0], trial_accuracy[1])
                 image_switch = False
+            """
 
 
             """
@@ -396,9 +400,9 @@ def main(gpu_id = None):
             """
             Append model results an dprint results
             """
-            append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, i, new_image_pair_i, start_time)
+            append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, i, trial_accuracy, start_time)
             if i%par['iters_between_outputs']==0 and i > 0:
-                print_results(i, model_performance, image_pair)
+                print_results(i, model_performance)
 
 
             """
@@ -435,7 +439,7 @@ def stack_vars(pol_out_list, val_out_list, reward_list, action_list, mask_list, 
     return val_out, reward, adv, act, pred_val, stacked_mask, #acc, newimgpair_iter
 
 
-def append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, trial_num, new_image_pair_i, start_time):
+def append_model_performance(model_performance, reward, entropy_loss, pol_loss, val_loss, h_list, trial_num, trial_accuracy, start_time):
 
     reward = np.mean(np.sum(reward,axis = 0))/par['trials_per_sequence']
     model_performance['reward'].append(reward)
@@ -444,7 +448,8 @@ def append_model_performance(model_performance, reward, entropy_loss, pol_loss, 
     model_performance['val_loss'].append(val_loss)
     model_performance['trial'].append(trial_num)
     model_performance['mean_h'].append(np.mean(np.stack(h_list)))
-    model_performance['newimgpair_iter'] = new_image_pair_i
+    #model_performance['newimgpair_iter'] = new_image_pair_i
+    model_performance['trial_accuracy'].append(np.stack(trial_accuracy))
     model_performance['time'] = time.time() -start_time
 
     return model_performance
@@ -570,19 +575,21 @@ def generate_placeholders():
     return x, target, mask, pred_val, actual_action, advantage, new_trial, h_init, c_init, syn_x_init, syn_u_init, mask
 
 
-def print_results(iter_num, model_performance, image_pair):
+def print_results(iter_num, model_performance):
 
     reward = np.mean(np.stack(model_performance['reward'])[-par['iters_between_outputs']:])
     pol_loss = np.mean(np.stack(model_performance['pol_loss'])[-par['iters_between_outputs']:])
     val_loss = np.mean(np.stack(model_performance['val_loss'])[-par['iters_between_outputs']:])
     entropy_loss = np.mean(np.stack(model_performance['entropy_loss'])[-par['iters_between_outputs']:])
     mean_h = np.mean(np.stack(model_performance['mean_h'])[-par['iters_between_outputs']:])
+    trial_accuracy = np.mean(np.stack(model_performance['trial_accuracy'])[-par['iters_between_outputs']:,:], axis = 0)
 
 
     print('Iter. {:4d}'.format(iter_num) + ' | Reward {:0.4f}'.format(reward) +
       ' | Pol loss {:0.4f}'.format(pol_loss) + ' | Val loss {:0.4f}'.format(val_loss) +
       ' | Entropy loss {:0.4f}'.format(entropy_loss), ' | Mean h {:0.4f}'.format(mean_h) +
-      ' | Image pair {:2d}'.format(image_pair) + ' | Time {:0.4f}'.format(model_performance['time']))
+      ' | Time {:0.4f}'.format(model_performance['time']))
+    print('Trial accuracy ', trial_accuracy)
 
 def print_key_params():
 

@@ -13,8 +13,8 @@ par = {
     'save_dir'              : './',
     #'conv_weight_fn'        : 'C:\\Users\\Krithika\\Documents\\RNNs\\learning_to_learn\\conv_weights.pkl',
     #'conv_weight_fn'        : '/home/bpeysakhovich/Documents/rnn_modeling/learning_to_learn/conv_weights.pkl',
-    #'conv_weight_fn'        : '/home/masse/learning_to_learn/conv_weights.pkl',
-    'conv_weight_fn'        : 'C:\\Users\\Freedmanlab\\barbara\\learning_to_learn\\conv_weights.pkl',
+    'conv_weight_fn'        : '/home/masse/learning_to_learn/conv_weights.pkl',
+    #'conv_weight_fn'        : 'C:\\Users\\Freedmanlab\\barbara\\learning_to_learn\\conv_weights.pkl',
     'analyze_model'         : True,
 
     # Network configuration
@@ -37,7 +37,7 @@ par = {
 
     # Timings and rates
     'dt'                    : 20,
-    'learning_rate'         : 2e-3,
+    'learning_rate'         : 5e-3,
     'membrane_time_constant': 100,
     'discount_rate'         : 0.,
 
@@ -49,7 +49,7 @@ par = {
 
     # Cost parameters
     'spike_cost'            : 1e-6,
-    'entropy_cost'          : 0.04,
+    'entropy_cost'          : 0.005,
 
     # Synaptic plasticity specs
     'tau_fast'              : 200,
@@ -58,10 +58,10 @@ par = {
     'U_std'                 : 0.45,
 
     # Training specs
-    'batch_size'            : 256,
+    'batch_size'            : 1024,
     'num_iterations'        : 40000,
     'iters_between_outputs' : 100,
-    'trials_per_sequence'   : 2,
+    'trials_per_sequence'   : 4,
     'trials_per_grad_update': 1,
 
     # Task specs
@@ -113,6 +113,14 @@ def update_trial_params():
         par['stim'] = 200
         par['delay'] = 0
         par['resp'] = 400
+
+        par['ITI'] = 60
+        par['fix'] = 40
+        par['stim'] = 40
+        par['delay'] = 0
+        par['resp'] = 100
+
+
         par['trial_length'] = par['ITI'] + par['fix'] + par['stim'] + par['delay'] + par['resp']
         par['n_time_steps'] = par['trial_length']//par['dt']
         par['sequence_time_steps'] = par['n_time_steps']*par['trials_per_sequence']

@@ -12,13 +12,13 @@ class Stimulus:
         # we will use the train images fro the learning to learn experiments
         #self.imagenet_dir = '/home/masse/Context-Dependent-Gating/ImageNet/'
         #self.cifar_dir = 'C:\\Users\\Krithika\\Documents\\RNNs\\learning_to_learn\\cifar-100-python\\'
-        self.cifar_dir = 'C:\\Users\\Freedmanlab\\barbara\\learning_to_learn\\cifar-100-python\\'
-        #self.cifar_dir = '/home/masse/Context-Dependent-Gating/cifar/cifar-100-python/'
+        #self.cifar_dir = 'C:\\Users\\Freedmanlab\\barbara\\learning_to_learn\\cifar-100-python\\'
+        self.cifar_dir = '/home/masse/Context-Dependent-Gating/cifar/cifar-100-python/'
         self.load_cifar_data()
 
         # for the simple image/saccade task (task 1), select 50 pairs of images
         # TODO: find better name than task1
-        self.image_list_task1 = np.random.choice(len(self.test_labels), size = (100,2), replace = False)
+        #self.image_list_task1 = np.random.choice(len(self.test_labels), size = (100,2), replace = False)
 
         # Task 0 will be structured in the same manner as Task 1, but will use small synthetic random data,
         # where each "image" is a 1 X par['synthetic_size'] random vector
@@ -28,11 +28,11 @@ class Stimulus:
             self.image_task0[i,0,:par['synthetic_size']//2] *= 2
             self.image_task0[i,1,par['synthetic_size']//2:] *= 2
 
-    def generate_batch(self, task, image_pair):
+    def generate_batch(self, task):
         if task == 0:
             return self.generate_batch_task0(image_pair)
         elif task == 1:
-            return self.generate_batch_task1(image_pair)
+            return self.generate_batch_task1()
         else:
             print('Unrecognized task number')
 
@@ -80,7 +80,7 @@ class Stimulus:
 
         return np.maximum(0, batch_data), rewards, trial_mask, new_trial
 
-    def generate_batch_task1(self, image_pair):
+    def generate_batch_task1(self):
 
         # 3 outputs: 0 = fixation, 1 = left, 2 = right
         # reward of 0 for maintaining fixation, -1 for improperly breaking fixation
@@ -98,6 +98,8 @@ class Stimulus:
         delay = par['delay']//par['dt']
         resp = par['resp']//par['dt']
 
+        image_pairs = np.random.choice(len(self.test_labels), size = (par['batch_size'],2), replace = False)
+
         for i, j in product(range(par['batch_size']), range(par['trials_per_sequence'])):
 
             start_time = j*par['n_time_steps']
@@ -105,7 +107,7 @@ class Stimulus:
             trial_mask[range(start_time,start_time+ITI), :, 0] = 0
 
             sac_dir = np.random.choice(2)
-            image_ind = self.image_list_task1[image_pair, sac_dir]
+            image_ind = image_pairs[i, sac_dir]
 
             """
             batch_data[range(start_time+ITI+fix, start_time+ITI+fix+stim), i, ...] = \
