@@ -235,6 +235,8 @@ class Model:
         # W_pol_out projects from the RNN onto the policy output neurons
         # W_val_out projects from the RNN onto the value output neuron
 
+        self.hidden_init = tf.get_variable('hidden_init', initializer = par['h_init'])
+
         with tf.variable_scope('recurrent_pol'):
             if par['include_ff_layer']:
                 self.W_in0 = tf.get_variable('W_in0', initializer = par['W_in0_init'])
@@ -281,7 +283,7 @@ class Model:
             self.W_reward = tf.get_variable('W_reward', initializer = par['W_reward_init'])
             self.W_action = tf.get_variable('W_action', initializer = par['W_action_init'])
 
-def main(gpu_id = None):
+def main(fname, gpu_id = None):
 
     if gpu_id is not None:
         os.environ["CUDA_VISIBLE_DEVICES"] = gpu_id
@@ -297,7 +299,7 @@ def main(gpu_id = None):
     stim = task.Stimulus()
 
     """
-    Define all placeholder
+    Define all placeholders
     """
     x, target, mask, pred_val, actual_action, advantage, new_trial, h_init, c_init, syn_x_init, syn_u_init, mask = generate_placeholders()
 
@@ -317,7 +319,7 @@ def main(gpu_id = None):
         # keep track of the model performance across training
         model_performance = {'reward': [], 'entropy_loss': [], 'val_loss': [], 'pol_loss': [], 'spike_loss': [], 'trial': [], 'mean_h': [], 'trial_accuracy': []}
 
-        hidden_init = np.array(par['h_init'])
+        #hidden_init = np.array(par['h_init'])
         cell_state_init = np.array(par['c_init'])
         sx_init = np.array(par['syn_x_init']) # short-term plasticity value
         su_init = np.array(par['syn_u_init']) # short-term plasticity value
@@ -349,6 +351,7 @@ def main(gpu_id = None):
                 switch = True
 
             input_data, reward_data, trial_mask, new_trial_signal, image_pairs = stim.generate_batch(par['switch_every_ep'], image_pairs, switch, task = 1)
+            import pdb; pdb.set_trace()
 
             """
             Run the model
@@ -419,7 +422,7 @@ def main(gpu_id = None):
                 #'weights': weights,
                 }
 
-            save_fn = par['save_dir'] + par['save_fn']
+            save_fn = par['save_dir'] + fname
             pickle.dump(results, open(save_fn, 'wb') )
 
 
@@ -457,6 +460,8 @@ def append_model_performance(model_performance, reward, entropy_loss, pol_loss, 
     return model_performance
 
 def eval_weights():
+
+    hidden_init = tf.get_variable('hidden_init')
 
     with tf.variable_scope('recurrent_pol'):
         if par['include_ff_layer']:

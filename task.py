@@ -13,7 +13,9 @@ class Stimulus:
         #self.imagenet_dir = '/home/masse/Context-Dependent-Gating/ImageNet/'
         #self.cifar_dir = 'C:\\Users\\Krithika\\Documents\\RNNs\\learning_to_learn\\cifar-100-python\\'
         #self.cifar_dir = 'C:\\Users\\Freedmanlab\\barbara\\learning_to_learn\\cifar-100-python\\'
-        self.cifar_dir = '/home/masse/Context-Dependent-Gating/cifar/cifar-100-python/'
+        #self.cifar_dir = '/home/masse/Context-Dependent-Gating/cifar/cifar-100-python/'
+        self.cifar_dir = '/home/freedmanlab/learning_to_learn/cifar-100-python/'
+
         self.load_cifar_data()
 
         # for the simple image/saccade task (task 1), select 50 pairs of images

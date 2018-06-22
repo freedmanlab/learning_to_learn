@@ -13,8 +13,9 @@ par = {
     'save_dir'              : './',
     #'conv_weight_fn'        : 'C:\\Users\\Krithika\\Documents\\RNNs\\learning_to_learn\\conv_weights.pkl',
     #'conv_weight_fn'        : '/home/bpeysakhovich/Documents/rnn_modeling/learning_to_learn/conv_weights.pkl',
-    'conv_weight_fn'        : '/home/masse/learning_to_learn/conv_weights.pkl',
+    #'conv_weight_fn'        : '/home/masse/learning_to_learn/conv_weights.pkl',
     #'conv_weight_fn'        : 'C:\\Users\\Freedmanlab\\barbara\\learning_to_learn\\conv_weights.pkl',
+    'conv_weight_fn'        : '/home/freedmanlab/learning_to_learn/conv_weights.pkl',
     'analyze_model'         : True,
 
     # Network configuration
