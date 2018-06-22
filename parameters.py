@@ -226,15 +226,10 @@ def update_dependencies():
         par['Uo_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_hidden'], par['n_hidden']]))
         par['Uc_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_hidden'], par['n_hidden']]))
 
-        par['Wf_reward_pos_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
-        par['Wi_reward_pos_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
-        par['Wo_reward_pos_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
-        par['Wc_reward_pos_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
-
-        par['Wf_reward_neg_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
-        par['Wi_reward_neg_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
-        par['Wo_reward_neg_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
-        par['Wc_reward_neg_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
+        par['Wf_reward_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
+        par['Wi_reward_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
+        par['Wo_reward_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
+        par['Wc_reward_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
 
         par['Wf_action_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_pol'], par['n_hidden']]))
         par['Wi_action_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_pol'], par['n_hidden']]))
@@ -248,8 +243,7 @@ def update_dependencies():
 
 
     else:
-        par['W_reward_pos_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
-        par['W_reward_neg_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
+        par['W_reward_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_val'], par['n_hidden']]))
         par['W_action_init'] =  np.float32(np.random.uniform(-c, c, size = [par['n_pol'], par['n_hidden']]))
 
         par['b_rnn_init'] = np.zeros((1, par['n_hidden']), dtype = np.float32)

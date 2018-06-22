@@ -188,18 +188,18 @@ class Model:
 
         if par['LSTM']:
             # forgetting gate
-            f = tf.sigmoid(tf.matmul(x, self.Wf) + tf.matmul(h, self.Uf) + tf.matmul(tf.nn.relu(prev_reward), self.Wf_reward_pos) \
-                + tf.matmul(tf.nn.relu(-prev_reward), self.Wf_reward_neg) + mask*(tf.matmul(prev_action, self.Wf_action)) + self.bf)
+            f = tf.sigmoid(tf.matmul(x, self.Wf) + tf.matmul(h, self.Uf) + tf.matmul(tf.nn.relu(prev_reward), self.Wf_reward) + \
+                mask*(tf.matmul(prev_action, self.Wf_action)) + self.bf)
             # input gate
-            i = tf.sigmoid(tf.matmul(x, self.Wi) + tf.matmul(h, self.Ui) + tf.matmul(tf.nn.relu(prev_reward), self.Wi_reward_pos) \
-                + tf.matmul(tf.nn.relu(-prev_reward), self.Wi_reward_neg) + mask*(tf.matmul(prev_action, self.Wi_action)) + self.bi)
+            i = tf.sigmoid(tf.matmul(x, self.Wi) + tf.matmul(h, self.Ui) + tf.matmul(tf.nn.relu(prev_reward), self.Wi_reward) + \
+                mask*(tf.matmul(prev_action, self.Wi_action)) + self.bi)
             # updated cell state
-            cn = tf.tanh(tf.matmul(x, self.Wc) + tf.matmul(h, self.Uc) + tf.matmul(tf.nn.relu(prev_reward), self.Wc_reward_pos) \
-                + tf.matmul(tf.nn.relu(-prev_reward), self.Wc_reward_neg) + mask*(tf.matmul(prev_action, self.Wc_action)) + self.bc)
+            cn = tf.tanh(tf.matmul(x, self.Wc) + tf.matmul(h, self.Uc) + tf.matmul(tf.nn.relu(prev_reward), self.Wc_reward) + \
+                mask*(tf.matmul(prev_action, self.Wc_action)) + self.bc)
             c = tf.multiply(f, c) + tf.multiply(i, cn)
             # output gate
-            o = tf.sigmoid(tf.matmul(x, self.Wo) + tf.matmul(h, self.Uo) + tf.matmul(tf.nn.relu(prev_reward), self.Wo_reward_pos) \
-                + tf.matmul(tf.nn.relu(-prev_reward), self.Wo_reward_neg) + mask*(tf.matmul(prev_action, self.Wo_action)) + self.bo)
+            o = tf.sigmoid(tf.matmul(x, self.Wo) + tf.matmul(h, self.Uo) + tf.matmul(tf.nn.relu(prev_reward), self.Wo_reward) + \
+                mask*(tf.matmul(prev_action, self.Wo_action)) + self.bo)
 
             h = tf.multiply(o, tf.tanh(c))
             syn_x = tf.constant(-1.)
@@ -217,9 +217,9 @@ class Model:
                 h_post = h
 
             h = tf.nn.relu((1-par['alpha'])*h + par['alpha']*(tf.matmul(x, self.W_in1) + \
-                tf.matmul(h_post, self.W_rnn_eff) + mask*(tf.matmul(tf.nn.relu(prev_reward), self.W_reward_pos) + \
-                tf.matmul(tf.nn.relu(-prev_reward), self.W_reward_neg) + tf.matmul(prev_action, self.W_action)) + \
-                self.b_rnn) + tf.random_normal([par['batch_size'], par['n_hidden']], 0, par['noise_rnn'], dtype=tf.float32))
+                tf.matmul(h_post, self.W_rnn_eff) + mask*(tf.matmul(tf.nn.relu(prev_reward), self.W_reward) + \
+                tf.matmul(prev_action, self.W_action)) + self.b_rnn) + \
+                tf.random_normal([par['batch_size'], par['n_hidden']], 0, par['noise_rnn'], dtype=tf.float32))
 
             c = invalid_c_val
 
@@ -263,15 +263,10 @@ class Model:
             self.bo = tf.get_variable('bo', initializer = par['bo_init'])
             self.bc = tf.get_variable('bc', initializer = par['bc_init'])
 
-            self.Wf_reward_pos = tf.get_variable('Wf_reward_pos', initializer = par['Wf_reward_pos_init'])
-            self.Wi_reward_pos = tf.get_variable('Wi_reward_pos', initializer = par['Wi_reward_pos_init'])
-            self.Wo_reward_pos = tf.get_variable('Wo_reward_pos', initializer = par['Wo_reward_pos_init'])
-            self.Wc_reward_pos = tf.get_variable('Wc_reward_pos', initializer = par['Wc_reward_pos_init'])
-
-            self.Wf_reward_neg = tf.get_variable('Wf_reward_neg', initializer = par['Wf_reward_neg_init'])
-            self.Wi_reward_neg = tf.get_variable('Wi_reward_neg', initializer = par['Wi_reward_neg_init'])
-            self.Wo_reward_neg = tf.get_variable('Wo_reward_neg', initializer = par['Wo_reward_neg_init'])
-            self.Wc_reward_neg = tf.get_variable('Wc_reward_neg', initializer = par['Wc_reward_neg_init'])
+            self.Wf_reward = tf.get_variable('Wf_reward', initializer = par['Wf_reward_init'])
+            self.Wi_reward = tf.get_variable('Wi_reward', initializer = par['Wi_reward_init'])
+            self.Wo_reward = tf.get_variable('Wo_reward', initializer = par['Wo_reward_init'])
+            self.Wc_reward = tf.get_variable('Wc_reward', initializer = par['Wc_reward_init'])
 
             self.Wf_action = tf.get_variable('Wf_action', initializer = par['Wf_action_init'])
             self.Wi_action = tf.get_variable('Wi_action', initializer = par['Wi_action_init'])
@@ -283,8 +278,7 @@ class Model:
             self.W_in1 = tf.get_variable('W_in1', initializer = par['W_in1_init'])
             self.b_rnn = tf.get_variable('b_rnn', initializer = par['b_rnn_init'])
             self.W_rnn = tf.get_variable('W_rnn', initializer = par['W_rnn_init'])
-            self.W_reward_pos = tf.get_variable('W_reward_pos', initializer = par['W_reward_pos_init'])
-            self.W_reward_neg = tf.get_variable('W_reward_neg', initializer = par['W_reward_neg_init'])
+            self.W_reward = tf.get_variable('W_reward', initializer = par['W_reward_init'])
             self.W_action = tf.get_variable('W_action', initializer = par['W_action_init'])
 
 def main(gpu_id = None):
@@ -492,15 +486,10 @@ def eval_weights():
         bo = tf.get_variable('bo')
         bc = tf.get_variable('bc')
 
-        Wf_reward_pos = tf.get_variable('Wf_reward_pos')
-        Wi_reward_pos = tf.get_variable('Wi_reward_pos')
-        Wo_reward_pos = tf.get_variable('Wo_reward_pos')
-        Wc_reward_pos = tf.get_variable('Wc_reward_pos')
-
-        Wf_reward_neg = tf.get_variable('Wf_reward_neg')
-        Wi_reward_neg = tf.get_variable('Wi_reward_neg')
-        Wo_reward_neg = tf.get_variable('Wo_reward_neg')
-        Wc_reward_neg = tf.get_variable('Wc_reward_neg')
+        Wf_reward = tf.get_variable('Wf_reward')
+        Wi_reward = tf.get_variable('Wi_reward')
+        Wo_reward = tf.get_variable('Wo_reward')
+        Wc_reward = tf.get_variable('Wc_reward')
 
         Wf_action = tf.get_variable('Wf_action')
         Wi_action = tf.get_variable('Wi_action')
@@ -520,14 +509,10 @@ def eval_weights():
             'bi' : bi.eval(),
             'bo' : bo.eval(),
             'bc' : bc.eval(),
-            'Wf_reward_pos' : Wf_reward_pos.eval(),
-            'Wi_reward_pos' : Wi_reward_pos.eval(),
-            'Wo_reward_pos' : Wo_reward_pos.eval(),
-            'Wc_reward_pos' : Wc_reward_pos.eval(),
-            'Wf_reward_neg' : Wf_reward_neg.eval(),
-            'Wi_reward_neg' : Wi_reward_neg.eval(),
-            'Wo_reward_neg' : Wo_reward_neg.eval(),
-            'Wc_reward_neg' : Wc_reward_neg.eval(),
+            'Wf_reward' : Wf_reward.eval(),
+            'Wi_reward' : Wi_reward.eval(),
+            'Wo_reward' : Wo_reward.eval(),
+            'Wc_reward' : Wc_reward.eval(),
             'Wf_action' : Wf_action.eval(),
             'Wi_action' : Wi_action.eval(),
             'Wo_action' : Wo_action.eval(),
@@ -542,16 +527,14 @@ def eval_weights():
         W_in1 = tf.get_variable('W_in1')
         b_rnn = tf.get_variable('b_rnn')
         W_rnn = tf.get_variable('W_rnn')
-        W_reward_pos = tf.get_variable('W_reward_pos')
-        W_reward_neg = tf.get_variable('W_reward_neg')
+        W_reward = tf.get_variable('W_reward')
         W_action = tf.get_variable('W_action')
 
         weights = {
             'W_in1' : W_in1.eval(),
             'b_rnn' : b_rnn.eval(),
             'W_rnn' : W_rnn.eval(),
-            'W_reward_pos' : W_reward_pos.eval(),
-            'W_reward_neg' : W_reward_neg.eval(),
+            'W_reward' : W_reward.eval(),
             'W_action' : W_action.eval(),
             'W_pol_out' : W_pol_out.eval(),
             'b_pol_out' : b_pol_out.eval(),
