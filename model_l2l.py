@@ -66,8 +66,14 @@ class Model:
         Initialize weights and biases
         """
         self.define_vars()
-
-
+        
+        # Modify the recurrent weights if using excitatory/inhibitory neurons
+        # only for use in non-LSTM networks
+        if par['EI']:
+            self.W_rnn_eff = tf.matmul(self.W_ei, tf.nn.relu(self.W_rnn))
+        elif not par['LSTM']:
+            self.W_rnn_eff = self.W_rnn
+            
         """
         Loop through the neural inputs to the RNN, indexed in time
         """
@@ -98,12 +104,6 @@ class Model:
 
 
     def rnn_cell(self, x, h, syn_x, syn_u, c, prev_action, prev_reward, mask, target, time_mask, new_trial):
-
-        # Modify the recurrent weights if using excitatory/inhibitory neurons
-        if par['EI']:
-            # only for use in non-LSTM networks
-            self.W_rnn = tf.matmul(self.W_ei, tf.nn.relu(self.W_rnn))
-
 
         # pass the output of the convolutional layers through the feedforward layer(s)
         if par['include_ff_layer']:
@@ -217,7 +217,7 @@ class Model:
                 h_post = h
 
             h = tf.nn.relu((1-par['alpha'])*h + par['alpha']*(tf.matmul(x, self.W_in1) + \
-                tf.matmul(h_post, self.W_rnn) + mask*(tf.matmul(tf.nn.relu(prev_reward), self.W_reward_pos) + \
+                tf.matmul(h_post, self.W_rnn_eff) + mask*(tf.matmul(tf.nn.relu(prev_reward), self.W_reward_pos) + \
                 tf.matmul(tf.nn.relu(-prev_reward), self.W_reward_neg) + tf.matmul(prev_action, self.W_action)) + \
                 self.b_rnn) + tf.random_normal([par['batch_size'], par['n_hidden']], 0, par['noise_rnn'], dtype=tf.float32))
 
