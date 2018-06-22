@@ -103,7 +103,7 @@ class Stimulus:
         if switch_every_ep:
             image_pairs = np.random.choice(len(self.test_labels), size = (par['batch_size'],2), replace = False)
         else:
-            if switch or not image_pairs:
+            if switch:
                 im_pair_indx = np.random.choice(len(self.test_labels), size = (1,2), replace = False)
                 image_pairs = np.repeat(im_pair_indx, par['batch_size'], axis=0)
 

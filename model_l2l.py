@@ -21,8 +21,7 @@ Model setup and execution
 """
 class Model:
 
-    def __init__(self, input_data, target_data, pred_val, actual_action, advantage, mask, new_trial, h_init, syn_x_init, syn_u_init, c_init):
-
+    def __init__(self, input_data, target_data, pred_val, actual_action, advantage, mask, new_trial, syn_x_init, syn_u_init, c_init):
         # Load the input activity, the target data, and the training mask for this batch of trials
         self.input_data = tf.unstack(input_data, axis=0)
         self.target_data = tf.unstack(target_data, axis=0)
@@ -35,15 +34,14 @@ class Model:
         self.time_mask = tf.unstack(mask, axis=0)
 
         # Build the TensorFlow graph
-        self.rnn_cell_loop(h_init, syn_x_init, syn_u_init, c_init)
+        self.rnn_cell_loop(syn_x_init, syn_u_init, c_init)
 
         # Train the model
         self.optimize()
 
 
-    def rnn_cell_loop(self, h, syn_x, syn_u, c):
-
-
+    #def rnn_cell_loop(self, h, syn_x, syn_u, c):
+    def rnn_cell_loop(self, syn_x, syn_u, c):
         self.W_ei = tf.constant(par['EI_matrix'])
         self.h = [] # RNN activity
         self.c = [] # RNN activity
@@ -73,6 +71,8 @@ class Model:
             self.W_rnn_eff = tf.matmul(self.W_ei, tf.nn.relu(self.W_rnn))
         elif not par['LSTM']:
             self.W_rnn_eff = self.W_rnn
+
+        h = self.h_init
 
         """
         Loop through the neural inputs to the RNN, indexed in time
@@ -235,7 +235,7 @@ class Model:
         # W_pol_out projects from the RNN onto the policy output neurons
         # W_val_out projects from the RNN onto the value output neuron
 
-        self.hidden_init = tf.get_variable('hidden_init', initializer = par['h_init'])
+        self.h_init = tf.get_variable('h_init', initializer = par['h_init'])
 
         with tf.variable_scope('recurrent_pol'):
             if par['include_ff_layer']:
@@ -301,25 +301,24 @@ def main(fname, gpu_id = None):
     """
     Define all placeholders
     """
-    x, target, mask, pred_val, actual_action, advantage, new_trial, h_init, c_init, syn_x_init, syn_u_init, mask = generate_placeholders()
+    x, target, mask, pred_val, actual_action, advantage, new_trial, c_init, syn_x_init, syn_u_init, mask = generate_placeholders()
 
     config = tf.ConfigProto()
     #config.gpu_options.allow_growth=True
 
     print_key_params()
-
+    #import pdb; pdb.set_trace()
     with tf.Session(config = config) as sess:
 
         device = '/cpu:0' if gpu_id is None else '/gpu:0'
         with tf.device(device):
-            model = Model(x, target, pred_val, actual_action, advantage, mask, new_trial, h_init, syn_x_init, syn_u_init, c_init)
+            model = Model(x, target, pred_val, actual_action, advantage, mask, new_trial, syn_x_init, syn_u_init, c_init)
 
         sess.run(tf.global_variables_initializer())
 
         # keep track of the model performance across training
         model_performance = {'reward': [], 'entropy_loss': [], 'val_loss': [], 'pol_loss': [], 'spike_loss': [], 'trial': [], 'mean_h': [], 'trial_accuracy': []}
 
-        #hidden_init = np.array(par['h_init'])
         cell_state_init = np.array(par['c_init'])
         sx_init = np.array(par['syn_x_init']) # short-term plasticity value
         su_init = np.array(par['syn_u_init']) # short-term plasticity value
@@ -331,7 +330,7 @@ def main(fname, gpu_id = None):
         #accuracy_after_switch = []
 
         # initialize image_pairs array
-        image_pairs = None
+        image_pairs = []
 
         for i in range(par['num_iterations']):
 
@@ -347,19 +346,17 @@ def main(fname, gpu_id = None):
             """
 
             switch = False
-            if i%par['iters_before_im_switch'] == 0:
+            if i%par['iters_before_im_switch'] == 0 or i == 0:
                 switch = True
 
             input_data, reward_data, trial_mask, new_trial_signal, image_pairs = stim.generate_batch(par['switch_every_ep'], image_pairs, switch, task = 1)
-            import pdb; pdb.set_trace()
 
             """
             Run the model
             """
             pol_out_list, val_out_list, h_list, syn_x_list, syn_u_list, action_list, mask_list, reward_list = sess.run([model.pol_out, model.val_out, \
                 model.h, model.syn_x, model.syn_u, model.action, model.mask, model.reward], {x: input_data, target: reward_data, mask: trial_mask, \
-                new_trial: new_trial_signal, h_init:hidden_init, syn_x_init: sx_init, syn_u_init: su_init, c_init:cell_state_init})
-
+                new_trial: new_trial_signal, syn_x_init: sx_init, syn_u_init: su_init, c_init:cell_state_init})
 
             """
             Unpack all lists, calculate predicted value and advantage functions
@@ -380,8 +377,7 @@ def main(fname, gpu_id = None):
             """
             _, pol_loss, val_loss, entropy_loss = sess.run([model.update_gradients, model.pol_loss, model.val_loss, model.entropy_loss], \
                 {x: input_data, target: reward_data, mask: trial_mask, pred_val: predicted_val, actual_action: act, advantage:adv, \
-                new_trial: new_trial_signal, h_init: hidden_init,  syn_x_init: sx_init, syn_u_init: su_init, c_init: cell_state_init})
-
+                new_trial: new_trial_signal,  syn_x_init: sx_init, syn_u_init: su_init, c_init: cell_state_init})
 
             """
             Apply the accumulated gradients and reset
@@ -422,7 +418,7 @@ def main(fname, gpu_id = None):
                 #'weights': weights,
                 }
 
-            save_fn = par['save_dir'] + fname
+            save_fn = par['save_dir'] + fname + '.pkl'
             pickle.dump(results, open(save_fn, 'wb') )
 
 
@@ -461,7 +457,7 @@ def append_model_performance(model_performance, reward, entropy_loss, pol_loss, 
 
 def eval_weights():
 
-    hidden_init = tf.get_variable('hidden_init')
+    #hidden_init = tf.get_variable('hidden_init')
 
     with tf.variable_scope('recurrent_pol'):
         if par['include_ff_layer']:
@@ -562,14 +558,11 @@ def generate_placeholders():
     actual_action = tf.placeholder(tf.float32, shape=[par['sequence_time_steps'], par['batch_size'], par['n_pol']])
     advantage  = tf.placeholder(tf.float32, shape=[par['sequence_time_steps'], par['batch_size'], par['n_val']])
     new_trial  = tf.placeholder(tf.float32, shape=[par['sequence_time_steps']])
-    h_init =  tf.placeholder(tf.float32, shape=[par['batch_size'],par['n_hidden']])
     c_init =  tf.placeholder(tf.float32, shape=[par['batch_size'],par['n_hidden']])
     syn_x_init =  tf.placeholder(tf.float32, shape=[par['batch_size'],par['n_hidden']])
     syn_u_init =  tf.placeholder(tf.float32, shape=[par['batch_size'],par['n_hidden']])
 
-
-    return x, target, mask, pred_val, actual_action, advantage, new_trial, h_init, c_init, syn_x_init, syn_u_init, mask
-
+    return x, target, mask, pred_val, actual_action, advantage, new_trial, c_init, syn_x_init, syn_u_init, mask
 
 def print_results(iter_num, model_performance):
 
@@ -579,7 +572,6 @@ def print_results(iter_num, model_performance):
     entropy_loss = np.mean(np.stack(model_performance['entropy_loss'])[-par['iters_between_outputs']:])
     mean_h = np.mean(np.stack(model_performance['mean_h'])[-par['iters_between_outputs']:])
     trial_accuracy = np.mean(np.stack(model_performance['trial_accuracy'])[-par['iters_between_outputs']:,:], axis = 0)
-
 
     print('Iter. {:4d}'.format(iter_num) + ' | Reward {:0.4f}'.format(reward) +
       ' | Pol loss {:0.4f}'.format(pol_loss) + ' | Val loss {:0.4f}'.format(val_loss) +

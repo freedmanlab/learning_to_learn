@@ -31,26 +31,26 @@ par = {
 
     # Network shape
     'n_input'               : [2048, 1000],
-    'n_hidden'              : 100,
+    'n_hidden'              : 200,
     'n_pol'                 : 3,
     'n_val'                 : 1,
     'include_ff_layer'      : False,
 
     # Timings and rates
     'dt'                    : 20,
-    'learning_rate'         : 5e-3,
+    'learning_rate'         : 5e-4,
     'membrane_time_constant': 100,
     'discount_rate'         : 0.,
 
     # Variance values
     'clip_max_grad_val'     : 20,
     'noise_in_sd'           : 0.0,
-    'noise_rnn_sd'          : 0.05,
+    'noise_rnn_sd'          : 0.02,
     'drop_keep_pct'         : 0.8,
 
     # Cost parameters
-    'spike_cost'            : 1e-6,
-    'entropy_cost'          : 0.005,
+    'spike_cost'            : 1e-7,
+    'entropy_cost'          : 0.05,
 
     # Synaptic plasticity specs
     'tau_fast'              : 200,
@@ -59,20 +59,20 @@ par = {
     'U_std'                 : 0.45,
 
     # Training specs
-    'batch_size'            : 1024,
+    'batch_size'            : 256,
     'num_iterations'        : 40000,
-    'iters_between_outputs' : 100,
-    'trials_per_sequence'   : 4,
+    'iters_between_outputs' : 50,
+    'trials_per_sequence'   : 3,
     'trials_per_grad_update': 1,
 
     # Task specs
     'trial_type'            : 'task1',
     'switch_every_ep'       : False,
-    'iters_before_im_switch': 1,
+    'iters_before_im_switch': 10,
 
     # Reward parameters
-    'fix_break_penalty'     : -1.,
-    'wrong_choice_penalty'  : -0.01,
+    'fix_break_penalty'     : -0.2,
+    'wrong_choice_penalty'  : -1.,
     'correct_choice_reward' : 1.,
 
     # Parameters for convolutional layer
