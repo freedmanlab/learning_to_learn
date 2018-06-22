@@ -66,6 +66,8 @@ par = {
 
     # Task specs
     'trial_type'            : 'task1',
+    'switch_every_ep'       : False,
+    'iters_before_im_switch': 1,
 
     # Reward parameters
     'fix_break_penalty'     : -1.,

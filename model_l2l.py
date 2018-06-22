@@ -66,14 +66,14 @@ class Model:
         Initialize weights and biases
         """
         self.define_vars()
-        
+
         # Modify the recurrent weights if using excitatory/inhibitory neurons
         # only for use in non-LSTM networks
         if par['EI']:
             self.W_rnn_eff = tf.matmul(self.W_ei, tf.nn.relu(self.W_rnn))
         elif not par['LSTM']:
             self.W_rnn_eff = self.W_rnn
-            
+
         """
         Loop through the neural inputs to the RNN, indexed in time
         """
@@ -334,6 +334,9 @@ def main(gpu_id = None):
 
         #accuracy_after_switch = []
 
+        # initialize image_pairs array
+        image_pairs = None
+
         for i in range(par['num_iterations']):
 
             """
@@ -346,7 +349,12 @@ def main(gpu_id = None):
             """
             Generate stimulus and response contigencies
             """
-            input_data, reward_data, trial_mask, new_trial_signal = stim.generate_batch(task = 1)
+
+            switch = False
+            if i%par['iters_before_im_switch'] == 0:
+                switch = True
+
+            input_data, reward_data, trial_mask, new_trial_signal, image_pairs = stim.generate_batch(par['switch_every_ep'], image_pairs, switch, task = 1)
 
             """
             Run the model

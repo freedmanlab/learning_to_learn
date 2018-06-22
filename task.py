@@ -28,11 +28,11 @@ class Stimulus:
             self.image_task0[i,0,:par['synthetic_size']//2] *= 2
             self.image_task0[i,1,par['synthetic_size']//2:] *= 2
 
-    def generate_batch(self, task):
+    def generate_batch(self, switch_every_ep, image_pairs, switch, task):
         if task == 0:
             return self.generate_batch_task0(image_pair)
         elif task == 1:
-            return self.generate_batch_task1()
+            return self.generate_batch_task1(switch_every_ep, image_pairs, switch)
         else:
             print('Unrecognized task number')
 
@@ -80,7 +80,7 @@ class Stimulus:
 
         return np.maximum(0, batch_data), rewards, trial_mask, new_trial
 
-    def generate_batch_task1(self):
+    def generate_batch_task1(self, switch_every_ep, image_pairs, switch):
 
         # 3 outputs: 0 = fixation, 1 = left, 2 = right
         # reward of 0 for maintaining fixation, -1 for improperly breaking fixation
@@ -98,7 +98,12 @@ class Stimulus:
         delay = par['delay']//par['dt']
         resp = par['resp']//par['dt']
 
-        image_pairs = np.random.choice(len(self.test_labels), size = (par['batch_size'],2), replace = False)
+        if switch_every_ep:
+            image_pairs = np.random.choice(len(self.test_labels), size = (par['batch_size'],2), replace = False)
+        else:
+            if switch or not image_pairs:
+                im_pair_indx = np.random.choice(len(self.test_labels), size = (1,2), replace = False)
+                image_pairs = np.repeat(im_pair_indx, par['batch_size'], axis=0)
 
         for i, j in product(range(par['batch_size']), range(par['trials_per_sequence'])):
 
@@ -125,7 +130,7 @@ class Stimulus:
 
         #batch_data += np.random.normal(0, par['noise_in'], size = batch_data.shape)
 
-        return batch_data, rewards, trial_mask, new_trial
+        return batch_data, rewards, trial_mask, new_trial, image_pairs
 
 
     def load_imagenet_data(self):
